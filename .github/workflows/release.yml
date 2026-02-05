@@ -1,4 +1,4 @@
-name: Release
+name: Release # Release Docker image and create GitHub Release
 
 on:
   push:
