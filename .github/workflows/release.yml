@@ -12,7 +12,7 @@ env:
 
 jobs:
   docker:
-    runs-on: hephaestus-small
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write

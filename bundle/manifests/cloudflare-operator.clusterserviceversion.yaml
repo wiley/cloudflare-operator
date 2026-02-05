@@ -227,7 +227,7 @@ spec:
                 - --health-probe-bind-address=:8081
                 command:
                 - /manager
-                image: ghcr.io/wiley/cloudflare-operator:0.13.2
+                image: ghcr.io/wiley/cloudflare-operator:0.13.3
                 livenessProbe:
                   httpGet:
                     path: /healthz
@@ -341,4 +341,4 @@ spec:
   provider:
     name: adyanth.dev
     url: https://github.com/wiley/cloudflare-operator
-  version: 0.13.2
+  version: 0.13.3
