@@ -2,17 +2,11 @@ name: ci
 
 on:
   push:
-    tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
     branches:
       - "transfer"
-  create:
-    tags:
-      - "*"
-  pull_request:
-    branches:
       - "main"
   workflow_dispatch:
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: wiley/cloudflare-operator
@@ -20,21 +14,52 @@ env:
 jobs:
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0  # Fetch all history for tags
+          
+      - name: Get latest tag and increment version
+        id: version
+        run: |
+          # Fetch all tags
+          git fetch --tags
+          
+          # Get the latest tag (sorted by version)
+          LATEST_TAG=$(git tag -l '[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1)
+          
+          if [ -z "$LATEST_TAG" ]; then
+            # No tags found, start with 0.12.1
+            NEW_TAG="0.12.1"
+          else
+            echo "Latest tag: $LATEST_TAG"
+            
+            # Parse version components
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_TAG"
+            
+          # Increment patch version by 1
+          NEW_PATCH=$((PATCH + 1))
+          NEW_TAG="${MAJOR}.${MINOR}.${NEW_PATCH}"
+          echo "tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          
+      - name: Create and push new tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.version.outputs.tag }}
+          git push origin ${{ steps.version.outputs.tag }}
+          
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          # list of Docker images to use as base name for tags
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          # generate Docker tags based on the following events/attributes
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=${{ steps.version.outputs.tag }}
           flavor: | 
             latest=false
 
@@ -50,25 +75,29 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+          
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: ${{ github.event.ref_type == 'tag' && 'linux/amd64' || 'linux/amd64' }}
-          push: ${{ github.event.ref_type == 'tag' || github.event_name == 'workflow_dispatch' }}
+          platforms: linux/amd64,linux/arm64
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Setup Go 1.24
         uses: actions/setup-go@v5
-        if: github.event.ref_type == 'tag'
         with:
           go-version: 1.24
+          
       - name: Build installer
-        if: github.event.ref_type == 'tag'
-        run: make build-installer
-      - name: Publish installer
-        if: github.event.ref_type == 'tag'
-        run: gh release upload ${{ github.ref_name }} dist/*.yaml
+        run: make build-installer VERSION=${{ steps.version.outputs.tag }}
+        
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          files: dist/*.yaml
+          generate_release_notes: true
         env:
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
