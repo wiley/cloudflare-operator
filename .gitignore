@@ -1,0 +1,12 @@
+**/.idea/*
+**/.gradle/*
+**/target
+build/
+**/*.iml
+**/*.log
+**/LOG_DIR_IS_UNDEFINED/*
+**/tmp/*
+out/
+/tempBuildFiles/*
+# Exclude Mac indexer files
+*.DS_Store
