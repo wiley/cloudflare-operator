@@ -26,21 +26,11 @@ jobs:
       - name: Get latest tag and increment version
         id: version
         run: |
-          # Fetch all tags
-          git fetch --tags
-          
           # Get the latest tag (sorted by version)
           LATEST_TAG=$(git tag -l '[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -n1)
-          
-          if [ -z "$LATEST_TAG" ]; then
-            # No tags found, start with 0.12.1
-            NEW_TAG="0.12.1"
-          else
-            echo "Latest tag: $LATEST_TAG"
-            
-            # Parse version components
-            IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_TAG"
-            
+          echo "Latest tag: $LATEST_TAG"
+          # Parse version components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$LATEST_TAG"
           # Increment patch version by 1
           NEW_PATCH=$((PATCH + 1))
           NEW_TAG="${MAJOR}.${MINOR}.${NEW_PATCH}"
